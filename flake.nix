@@ -6,8 +6,8 @@
   };
 
   outputs = { self, nixpkgs }: {
-    devShells.aarch64-darwin.default = nixpkgs.legacyPackages.aarch64-darwin.mkShell {
-      buildInputs = with nixpkgs.legacyPackages.aarch64-darwin; [
+    devShells.aarch64-linux.default = nixpkgs.legacyPackages.aarch64-linux.mkShell {
+      buildInputs = with nixpkgs.legacyPackages.aarch64-linux; [
         qemu
         qemu-utils
       ];
