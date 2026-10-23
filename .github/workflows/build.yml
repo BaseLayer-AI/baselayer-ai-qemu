@@ -1,0 +1,21 @@
+# https://github.com/actions/runner-images/blob/main/images/macos/macos-27-arm64-Readme.md
+name: build and test
+
+on: push
+
+jobs:
+  build:
+    runs-on: macos-27
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Platform
+      run: uname -a
+    - name: install nix from https://github.com/DeterminateSystems/nix-installer/releases/download/v3.23.3/nix-installer.sh
+      run: cat nix-installer.sh | sh -s -- install --no-confirm
+    - name: nix version
+      run: nix --version
+    - name: nix flake show
+      run: nix flake show 
+    - name: make
+      run: make 
