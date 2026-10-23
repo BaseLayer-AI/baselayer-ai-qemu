@@ -14,3 +14,7 @@ jobs:
       run: cat nix-installer.sh | sh -s -- install --no-confirm
     - name: make
       run: make 
+    - name: test
+      run: |
+        nix develop --command bash -c 'timeout 15s qemu-system-x86_64 -hda test_disk.qcow2 -nographic -serial file:test.log || true'
+        cat test.log
