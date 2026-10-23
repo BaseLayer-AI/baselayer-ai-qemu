@@ -16,5 +16,5 @@ jobs:
       run: make 
     - name: test
       run: |
-        nix develop --command bash -c 'timeout 15s qemu-system-x86_64 -hda test_disk.qcow2 -nographic -serial file:test.log' || true
+        nix develop --command bash -c 'timeout 15s qemu-system-x86_64 -hda test_disk.qcow2 -nographic -serial file:test.log || true'
         cat test.log
