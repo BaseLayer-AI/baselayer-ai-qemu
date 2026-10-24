@@ -1,10 +1,20 @@
 {
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-  outputs = { self, nixpkgs }: 
-    let 
+  outputs = { self, nixpkgs }:
+    let
+      # The host system (your Apple Silicon Mac)
       system = "aarch64-darwin";
-      pkgs = import nixpkgs { inherit system; }; 
+      pkgs = import nixpkgs { inherit system; };
+      
+      # The target architecture (the x86_64 Linux VM)
+      x86_64_pkgs = import nixpkgs { system = "x86_64-linux"; };
+
+      # We point to the package directory
+      kernel_dir = x86_64_pkgs.linuxPackages.kernel;
+      
+      # We try the most common path for the initrd
+      # initrd_path = x86_64_pkgs.linuxPackages.kernel.initrd;
     in {
       packages = {
         ${system}.default = pkgs.writeTextFile {
@@ -13,56 +23,50 @@
           destination = "/bin/qemu-research";
           text = ''
             #!${pkgs.stdenv.shell}
-            
+
             BASE_DIR=$(pwd)
-            DISK_PATH="$BASE_DIR/test_disk.qcow2"
             LOG_PATH="$BASE_DIR/test.log"
             ERR_LOG="$BASE_DIR/qemu_error.log"
 
             # --- Cleanup Function ---
             cleanup() {
               echo "-----------------------------------------------------------"
-              echo "Cleaning up generated files..."
-              rm -f "$DISK_PATH" "$LOG_PATH" "$ERR_LOG"
+              echo "Cleaning up..."
+              rm -f "$LOG_PATH" "$ERR_LOG"
               echo "Done."
             }
 
-            # Trap signals: Run cleanup on exit, interruption (Ctrl+C), or termination
             trap cleanup EXIT INT TERM
-
-            # 1. Ensure disk exists
-            if [ ! -f "$DISK_PATH" ]; then
-              echo "Creating disk image..."
-              ${pkgs.qemu-utils}/bin/qemu-img create -f qcow2 "$DISK_PATH" 512M
-            fi
 
             # Clear the old log
             > "$LOG_PATH"
 
-            echo "Starting QEMU in background (15s timeout)..."
+            echo "Starting QEMU Kernel-only boot (15s timeout)..."
             
-            # 2. Start QEMU in the background
+            # 1. Start QEMU
+            # Note: We use ${kernel_dir}/bzImage to point to the actual binary file
             ${pkgs.qemu}/bin/qemu-system-x86_64 \
-              -hda "$DISK_PATH" \
+              -kernel ${kernel_dir}/bzImage \
               -nographic \
               -display none \
               -serial file:"$LOG_PATH" \
+              -append "console=ttyS0" \
+              -m 512M \
               2> "$ERR_LOG" &
             
             QEMU_PID=$!
 
-            # 3. Wait 15 seconds
+            # 2. Wait 15 seconds
             sleep 15
 
-            # 4. Kill the process
+            # 3. Kill the process
             echo "Killing QEMU (PID: $QEMU_PID)..."
             kill $QEMU_PID 2>/dev/null || true
 
-            # Small pause to let the OS flush the file handle
             sleep 0.5
 
             echo "-----------------------------------------------------------"
-            echo "Serial Log Content:"
+            echo "Kernel Boot Log Content:"
             if [ -s "$LOG_PATH" ]; then
               cat "$LOG_PATH"
             else
@@ -74,7 +78,6 @@
             fi
             echo "-----------------------------------------------------------"
 
-            # The trap handles the final cleanup
             true
           '';
         };
