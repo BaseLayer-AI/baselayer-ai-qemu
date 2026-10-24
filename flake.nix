@@ -10,11 +10,11 @@
       # The target architecture (the x86_64 Linux VM)
       x86_64_pkgs = import nixpkgs { system = "x86_64-linux"; };
 
-      # We point to the package directory
       kernel_dir = x86_64_pkgs.linuxPackages.kernel;
       
-      # We try the most common path for the initrd
-      # initrd_path = x86_64_pkgs.linuxPackages.kernel.initrd;
+      # --- ROBUST INITRD PATHS ---
+      # We try the two most common locations in Nixpkgs
+      # still borken initrd_path = x86_64_pkgs.linuxPackages.initrd;
     in {
       packages = {
         ${system}.default = pkgs.writeTextFile {
@@ -28,7 +28,6 @@
             LOG_PATH="$BASE_DIR/test.log"
             ERR_LOG="$BASE_DIR/qemu_error.log"
 
-            # --- Cleanup Function ---
             cleanup() {
               echo "-----------------------------------------------------------"
               echo "Cleaning up..."
@@ -38,28 +37,25 @@
 
             trap cleanup EXIT INT TERM
 
-            # Clear the old log
             > "$LOG_PATH"
 
-            echo "Starting QEMU Kernel-only boot (15s timeout)..."
+            echo "Starting QEMU Kernel + Initrd boot (15s timeout)..."
             
             # 1. Start QEMU
-            # Note: We use ${kernel_dir}/bzImage to point to the actual binary file
+            # We include -initrd. This provides the "suitcase" of drivers.
             ${pkgs.qemu}/bin/qemu-system-x86_64 \
               -kernel ${kernel_dir}/bzImage \
               -nographic \
               -display none \
               -serial file:"$LOG_PATH" \
-              -append "console=ttyS0" \
+              -append "console=ttyS0 root=/dev/null" \
               -m 512M \
               2> "$ERR_LOG" &
             
             QEMU_PID=$!
 
-            # 2. Wait 15 seconds
             sleep 15
 
-            # 3. Kill the process
             echo "Killing QEMU (PID: $QEMU_PID)..."
             kill $QEMU_PID 2>/dev/null || true
 
