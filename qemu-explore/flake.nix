@@ -15,6 +15,7 @@
             ls -lR ${host.qemu}
             ls -lR ${host.qemu-utils}
             ls -lR ${guest.linuxPackages.kernel}
+            ls -lR ${guest.busybox}
           '';
         };
       };
