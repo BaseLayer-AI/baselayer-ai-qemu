@@ -1,20 +1,21 @@
 {
   inputs.nixpkgs.url = "github:nixos/nixpkgs/master";
 
-  outputs = { self, nixpkgs }: 
-    let 
-      system = "aarch64-darwin";
-      pkgs = import nixpkgs { inherit system; }; 
+  outputs = { self, nixpkgs }:
+    let
+      host = import nixpkgs { system = "aarch64-darwin"; };
+      guest = import nixpkgs { system = "x86_64-linux"; };
     in {
       packages = {
-        ${system}.default = pkgs.writeTextFile {
+        aarch64-darwin.default = host.writeTextFile {
           name = "qemu-explore";
           executable = true;
           destination = "/bin/qemu-explore";
           text = ''
-            #!${pkgs.stdenv.shell}
-            ls -lR ${pkgs.qemu-utils} 
-            ls -lR ${pkgs.qemu}
+            #!${host.stdenv.shell}
+            ls -lR ${host.qemu}
+            ls -lR ${host.qemu-utils}
+            ls -lR ${guest.linuxPackages.kernel}
           '';
         };
       };
