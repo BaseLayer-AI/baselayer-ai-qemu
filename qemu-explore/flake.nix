@@ -1,6 +1,5 @@
 {
   inputs.nixpkgs.url = "github:nixos/nixpkgs/master";
-
   outputs = { self, nixpkgs }:
     let
       host = import nixpkgs { system = "aarch64-darwin"; };
@@ -21,4 +20,3 @@
       };
     };
 }
-
