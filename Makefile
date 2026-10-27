@@ -1,6 +1,5 @@
-all: show version explore
+all: show version run
 show:;nix flake show
 version:nix-version 
 nix-version:;nix --version
-explore:;nix run ./qemu-explore
-#run:;nix run&&ls
+run:;nix run
