@@ -8,14 +8,12 @@
     in {
       packages = {
         aarch64-darwin.default = host.writeTextFile {
-          name = "qemu-explore";
+          name = "qemu-aarch64-explore";
           executable = true;
           destination = "/bin/qemu-aarch64-explore";
           text = ''
             #!${host.stdenv.shell}
-            ls -lR ${host.qemu}
-            ls -lR ${host.qemu-utils}
-            ls -lR ${guest.linuxPackages.kernel}
+            ${host.qemu}/bin/qemu-system-aarch64 --help
           '';
         };
       };
