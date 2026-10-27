@@ -1,4 +1,6 @@
-# baselayer-ai-qemu
+# baselayer-ai-qemu/aarch64-darwin-qemu-boot-busybox-kernel-heartbeat
+
+Only works in Nix aarch64-darwin
 
 ```
 nix run github:BaseLayer-AI/baselayer-ai-qemu/aarch64-darwin-qemu-boot-busybox-kernel-heartbeat --refresh
