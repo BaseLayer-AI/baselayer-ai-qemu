@@ -13,4 +13,4 @@ jobs:
     - name: install nix from https://github.com/DeterminateSystems/nix-installer/releases/download/v3.23.3/nix-installer.sh
       run: cat nix-installer.sh | sh -s -- install --no-confirm
     - name: make
-      run: make 
+      run: make macos-26
