@@ -1,5 +1,5 @@
 {
-  description = "A CI-optimized automation script to run an x86_64 guest kernel verification check inside QEMU";
+  description = "A CI-optimized automation script to run an x86_64 guest kernel hearbeat check inside QEMU";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/master";
@@ -17,7 +17,7 @@
       guestStaticPkgs = import nixpkgs { system = "x86_64-linux"; };
       busybox_static = guestStaticPkgs.pkgsStatic.busybox;
     in {
-      packages.aarch64-darwin.default = host.writeShellScriptBin "qemu-boot-busybox" ''
+      packages.aarch64-darwin.default = host.writeShellScriptBin "qemu-boot-busybox-kernel-heartbeat" ''
         BASE_DIR=$(pwd)
         LOG_PATH="$BASE_DIR/test.log"
         ERR_LOG="$BASE_DIR/qemu_error.log"
