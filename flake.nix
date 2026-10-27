@@ -13,7 +13,7 @@
       guestLinuxPkgs = (import nixpkgs { system = "x86_64-linux"; }).linuxPackages;
       kernel_dir = guestLinuxPkgs.kernel;
 
-      # Pull pre-compiled static busybox directly from Nix cache (zero compilation)
+      # Pull pre-compiled static busybox directly from Nix cache
       guestStaticPkgs = import nixpkgs { system = "x86_64-linux"; };
       busybox_static = guestStaticPkgs.pkgsStatic.busybox;
     in {
@@ -30,7 +30,6 @@
           echo "Workspace clean."
         }
 
-        # Ensure everything is cleaned up if the runner is cancelled or fails mid-run
         trap cleanup EXIT INT TERM
 
         echo "--- Step 1: Building minimal initrd ---"
@@ -45,12 +44,14 @@
         cp "${busybox_static}/bin/busybox" "$BASE_DIR/tmp_initrd/init"
         chmod +x "$BASE_DIR/tmp_initrd/init"
 
-        # Configured inittab to auto-verify the state and trigger an explicit system poweroff
+        # Direct command calls in inittab (No shell used)
         cat <<EOF > "$BASE_DIR/tmp_initrd/etc/inittab"
 ::sysinit:/bin/busybox mount -t proc proc /proc
 ::sysinit:/bin/busybox mount -t sysfs sysfs /sys
 ::sysinit:/bin/busybox mount -t devtmpfs devtmpfs /dev
-::sysinit:/bin/busybox echo "--- Kernel successfully reached init script ---"
+::sysinit:/bin/busybox cat /proc/version
+::sysinit:/bin/busybox cat /proc/cpuinfo
+::sysinit:/bin/busybox cat /proc/meminfo
 ::sysinit:/bin/busybox poweroff -f
 EOF
 
@@ -62,7 +63,6 @@ EOF
         echo "--- Step 2: Running Automated QEMU Instance ---"
         > "$LOG_PATH"
         
-        # Added -no-reboot so that when the guest calls poweroff, QEMU shuts down and returns control instantly
         ${host.qemu}/bin/qemu-system-x86_64 \
           -cpu max \
           -kernel ${kernel_dir}/bzImage \
@@ -76,17 +76,21 @@ EOF
 
         echo "--- Step 3: Verifying Results ---"
         if [ -s "$LOG_PATH" ]; then
+          echo "--- Captured Guest Logs ---"
           cat "$LOG_PATH"
-          if grep -q "Kernel successfully reached init" "$LOG_PATH"; then
+          
+          # Verify that the specific system files were read successfully
+          if grep -q "Linux version" "$LOG_PATH" && \
+             grep -q "model name" "$LOG_PATH" && \
+             grep -q "MemTotal" "$LOG_PATH"; then
             echo "CI STATUS: SUCCESS"
             exit 0
           else
-            echo "CI STATUS: FAILURE (Message checkpoint missing)"
+            echo "CI STATUS: FAILURE (Diagnostics missing from log)"
             exit 1
           fi
         else
           echo "CI STATUS: ERROR (Empty Log Layout)"
-          # Print the error log before the trap removes it
           [ -f "$ERR_LOG" ] && cat "$ERR_LOG"
           exit 1
         fi
