@@ -7,7 +7,7 @@
 
   outputs = { self, nixpkgs }:
     let
-      host = import nixpkgs { system = "aarch64-darwin"; };
+      host = import nixpkgs { system = "aarch64-linux"; };
       
       # Pull pre-compiled kernel artifact from the cache
       guestLinuxPkgs = (import nixpkgs { system = "x86_64-linux"; }).linuxPackages;
@@ -17,7 +17,7 @@
       guestStaticPkgs = import nixpkgs { system = "x86_64-linux"; };
       busybox_static = guestStaticPkgs.pkgsStatic.busybox;
     in {
-      packages.aarch64-darwin.default = host.writeShellScriptBin "qemu-boot-busybox-kernel-heartbeat" ''
+      packages.aarch64-linux.default = host.writeShellScriptBin "qemu-boot-busybox-kernel-heartbeat" ''
         BASE_DIR=$(pwd)
         LOG_PATH="$BASE_DIR/test.log"
         ERR_LOG="$BASE_DIR/qemu_error.log"
