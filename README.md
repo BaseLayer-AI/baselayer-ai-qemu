@@ -1,7 +1,7 @@
-# baselayer-ai-qemu/aarch64-linux-qemu-boot-busybox-kernel-heartbeat
+# baselayer-ai-qemu/x86_64-linux-qemu-boot-busybox-kernel-heartbeat
 
-Only works in Nix aarch64-linux
+Only works in Nix x86_64-linux
 
 ```
-nix run github:BaseLayer-AI/baselayer-ai-qemu/aarch64-linux-qemu-boot-busybox-kernel-heartbeat --refresh
+nix run github:BaseLayer-AI/baselayer-ai-qemu/x86_64-linux-qemu-boot-busybox-kernel-heartbeat --refresh
 ```
