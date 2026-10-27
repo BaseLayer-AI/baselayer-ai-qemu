@@ -12,3 +12,4 @@ nix run github:BaseLayer-AI/baselayer-ai-qemu/aarch64-linux-qemu-boot-busybox-ke
 nix run github:BaseLayer-AI/baselayer-ai-qemu/x86_64-linux-qemu-boot-busybox-kernel-heartbeat --refresh
 ```
 
+<https://github.com/BaseLayer-AI/baselayer-ai-qemu/actions?query=branch%3Amain>
