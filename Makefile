@@ -1,5 +1,5 @@
-all: show version boot
+all: show version run
 show:;nix flake show
 version:nix-version 
 nix-version:;nix --version
-boot:;nix run ./qemu-boot-busybox
+run:;nix run 

@@ -1,83 +1,96 @@
 {
-  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+  description = "A CI-optimized automation script to run an x86_64 guest kernel verification check inside QEMU";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/master";
+  };
 
   outputs = { self, nixpkgs }:
     let
-      # The host system (your Apple Silicon Mac)
-      system = "aarch64-darwin";
-      pkgs = import nixpkgs { inherit system; };
+      host = import nixpkgs { system = "aarch64-darwin"; };
       
-      # The target architecture (the x86_64 Linux VM)
-      x86_64_pkgs = import nixpkgs { system = "x86_64-linux"; };
+      # Pull pre-compiled kernel artifact from the cache
+      guestLinuxPkgs = (import nixpkgs { system = "x86_64-linux"; }).linuxPackages;
+      kernel_dir = guestLinuxPkgs.kernel;
 
-      kernel_dir = x86_64_pkgs.linuxPackages.kernel;
-      
-      # --- ROBUST INITRD PATHS ---
-      # We try the two most common locations in Nixpkgs
-      # still borken initrd_path = x86_64_pkgs.linuxPackages.initrd;
+      # Pull pre-compiled static busybox directly from Nix cache (zero compilation)
+      guestStaticPkgs = import nixpkgs { system = "x86_64-linux"; };
+      busybox_static = guestStaticPkgs.pkgsStatic.busybox;
     in {
-      packages = {
-        ${system}.default = pkgs.writeTextFile {
-          name = "qemu-research";
-          executable = true;
-          destination = "/bin/qemu-research";
-          text = ''
-            #!${pkgs.stdenv.shell}
+      packages.aarch64-darwin.default = host.writeShellScriptBin "qemu-boot-initrd" ''
+        BASE_DIR=$(pwd)
+        LOG_PATH="$BASE_DIR/test.log"
+        ERR_LOG="$BASE_DIR/qemu_error.log"
 
-            BASE_DIR=$(pwd)
-            LOG_PATH="$BASE_DIR/test.log"
-            ERR_LOG="$BASE_DIR/qemu_error.log"
+        cleanup() {
+          echo "Cleaning workspace artifacts..."
+          rm -rf "$BASE_DIR/tmp_initrd"
+          rm -f "$BASE_DIR/initrd.cpio"
+          rm -f "$LOG_PATH" "$ERR_LOG"
+          echo "Workspace clean."
+        }
 
-            cleanup() {
-              echo "-----------------------------------------------------------"
-              echo "Cleaning up..."
-              rm -f "$LOG_PATH" "$ERR_LOG"
-              echo "Done."
-            }
+        # Ensure everything is cleaned up if the runner is cancelled or fails mid-run
+        trap cleanup EXIT INT TERM
 
-            trap cleanup EXIT INT TERM
+        echo "--- Step 1: Building minimal initrd ---"
+        mkdir -p "$BASE_DIR/tmp_initrd/bin"
+        mkdir -p "$BASE_DIR/tmp_initrd/proc" "$BASE_DIR/tmp_initrd/sys" "$BASE_DIR/tmp_initrd/dev"
+        mkdir -p "$BASE_DIR/tmp_initrd/etc"
+        
+        cp "${busybox_static}/bin/busybox" "$BASE_DIR/tmp_initrd/bin/busybox"
+        chmod +x "$BASE_DIR/tmp_initrd/bin/busybox"
+        ln -sf busybox "$BASE_DIR/tmp_initrd/bin/sh"
 
-            > "$LOG_PATH"
+        cp "${busybox_static}/bin/busybox" "$BASE_DIR/tmp_initrd/init"
+        chmod +x "$BASE_DIR/tmp_initrd/init"
 
-            echo "Starting QEMU Kernel + Initrd boot (15s timeout)..."
-            
-            # 1. Start QEMU
-            # We include -initrd. This provides the "suitcase" of drivers.
-            ${pkgs.qemu}/bin/qemu-system-x86_64 \
-              -kernel ${kernel_dir}/bzImage \
-              -nographic \
-              -display none \
-              -serial file:"$LOG_PATH" \
-              -append "console=ttyS0 root=/dev/null" \
-              -m 512M \
-              2> "$ERR_LOG" &
-            
-            QEMU_PID=$!
+        # Configured inittab to auto-verify the state and trigger an explicit system poweroff
+        cat <<EOF > "$BASE_DIR/tmp_initrd/etc/inittab"
+::sysinit:/bin/busybox mount -t proc proc /proc
+::sysinit:/bin/busybox mount -t sysfs sysfs /sys
+::sysinit:/bin/busybox mount -t devtmpfs devtmpfs /dev
+::sysinit:/bin/busybox echo "--- Kernel successfully reached init script ---"
+::sysinit:/bin/busybox poweroff -f
+EOF
 
-            sleep 15
+        # Pack the directory tree entries
+        cd "$BASE_DIR/tmp_initrd"
+        find . ! -name "." | ${host.cpio}/bin/cpio -oH newc > "$BASE_DIR/initrd.cpio"
+        cd "$BASE_DIR"
 
-            echo "Killing QEMU (PID: $QEMU_PID)..."
-            kill $QEMU_PID 2>/dev/null || true
+        echo "--- Step 2: Running Automated QEMU Instance ---"
+        > "$LOG_PATH"
+        
+        # Added -no-reboot so that when the guest calls poweroff, QEMU shuts down and returns control instantly
+        ${host.qemu}/bin/qemu-system-x86_64 \
+          -cpu max \
+          -kernel ${kernel_dir}/bzImage \
+          -initrd ./initrd.cpio \
+          -nographic \
+          -display none \
+          -no-reboot \
+          -serial file:"$LOG_PATH" \
+          -append "console=ttyS0 init=/init panic=-1" \
+          -m 512M 2> "$ERR_LOG"
 
-            sleep 0.5
-
-            echo "-----------------------------------------------------------"
-            echo "Kernel Boot Log Content:"
-            if [ -s "$LOG_PATH" ]; then
-              cat "$LOG_PATH"
-            else
-              echo "Warning: $LOG_PATH is still empty."
-              if [ -f "$ERR_LOG" ]; then
-                echo "Startup Errors:"
-                cat "$ERR_LOG"
-              fi
-            fi
-            echo "-----------------------------------------------------------"
-
-            true
-          '';
-        };
-      };
+        echo "--- Step 3: Verifying Results ---"
+        if [ -s "$LOG_PATH" ]; then
+          cat "$LOG_PATH"
+          if grep -q "Kernel successfully reached init" "$LOG_PATH"; then
+            echo "CI STATUS: SUCCESS"
+            exit 0
+          else
+            echo "CI STATUS: FAILURE (Message checkpoint missing)"
+            exit 1
+          fi
+        else
+          echo "CI STATUS: ERROR (Empty Log Layout)"
+          # Print the error log before the trap removes it
+          [ -f "$ERR_LOG" ] && cat "$ERR_LOG"
+          exit 1
+        fi
+      '';
     };
 }
 
