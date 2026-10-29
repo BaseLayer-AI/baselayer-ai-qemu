@@ -2,7 +2,7 @@
   description = "A CI-optimized automation script to run an x86_64 guest kernel hearbeat check inside QEMU";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/master";
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
   };
 
   outputs = { self, nixpkgs }:
