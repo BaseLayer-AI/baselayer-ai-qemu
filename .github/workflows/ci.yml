@@ -11,8 +11,8 @@ jobs:
       run: cat nix-installer.sh | sh -s -- install --no-confirm
     - name: nix --version
       run: nix --version
-    - name: nix run
-      run: nix run
+    - name: nix run "https://flakehub.com/f/BaseLayer-AI/baselayer-ai-qemu/*"
+      run: bash -c 'nix run "https://flakehub.com/f/BaseLayer-AI/baselayer-ai-qemu/*"'
 
   aarch64-linux:
     runs-on: ubuntu-26.04-arm
@@ -24,8 +24,8 @@ jobs:
       run: cat nix-installer.sh | sh -s -- install --no-confirm
     - name: nix --version
       run: nix --version
-    - name: nix run
-      run: nix run
+    - name: nix run "https://flakehub.com/f/BaseLayer-AI/baselayer-ai-qemu/*"
+      run: bash -c 'nix run "https://flakehub.com/f/BaseLayer-AI/baselayer-ai-qemu/*"'
 
   x86_64-linux:
     runs-on: ubuntu-26.04
@@ -37,5 +37,5 @@ jobs:
       run: cat nix-installer.sh | sh -s -- install --no-confirm
     - name: nix --version
       run: nix --version
-    - name: nix run
-      run: nix run
+    - name: nix run "https://flakehub.com/f/BaseLayer-AI/baselayer-ai-qemu/*"
+      run: bash -c 'nix run "https://flakehub.com/f/BaseLayer-AI/baselayer-ai-qemu/*"'
