@@ -1,5 +1,9 @@
 # baselayer-ai-qemu
 
+```
+nix run "https://flakehub.com/f/BaseLayer-AI/baselayer-ai-qemu/*"
+```
+
 ```nix
 {
   description = "A CI-optimized automation script to run an x86_64 guest kernel hearbeat check inside QEMU";
