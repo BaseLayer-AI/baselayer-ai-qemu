@@ -1,0 +1,25 @@
+name: "Publish every Git push to main to FlakeHub"
+on:
+  push:
+    branches:
+      - "main"
+jobs:
+  flakehub-publish:
+    runs-on: ubuntu-26.04
+    permissions:
+      id-token: "write"
+      contents: "read"
+    steps:
+      # https://github.com/actions/checkout/releases/tag/v7.0.1
+      - uses: "actions/checkout@v7.0.1"
+        with:
+          persist-credentials: false
+      # https://github.com/DeterminateSystems/determinate-nix-action/releases/tag/v3.24.1
+      - uses: "DeterminateSystems/determinate-nix-action@v3.24.1"
+      - uses: "DeterminateSystems/flakehub-push@main"
+        with:
+          name: "BaseLayer-AI/baselayer-ai-qemu"
+          rolling: true
+          visibility: "public"
+          include-output-paths: true
+          extra-labels: "flake,qemu,linux,kernel"
