@@ -97,4 +97,59 @@ fi
 
 ```
 
-<https://github.com/BaseLayer-AI/baselayer-ai-qemu/actions?query=branch%3Amain>
+This script is a **CI (Continuous Integration) "Smoke Test"** designed to verify that a specific Linux kernel can successfully boot and initialize basic system components.
+
+Here is the breakdown of the **What**, **How**, and **Why**.
+
+---
+
+### 1. What is it?
+It is a **Nix expression** that generates a shell script. This script automates the process of spinning up a virtual machine (VM) using QEMU. 
+
+Instead of booting a full operating system (like Ubuntu or Fedora), it boots a **minimal "Initrd" (Initial Ramdisk)**. The goal is to reach a "heartbeat" state: verifying that the kernel can load, mount essential filesystems (`/proc`, `/sys`, `/dev`), and execute basic commands to report system information.
+
+### 2. How does it work?
+The script follows a four-stage pipeline:
+
+#### A. Nix Environment Setup
+The script uses Nix to handle cross-platform compatibility. It defines three host types (`aarch64-darwin`, `aarch64-linux`, `x86_64-linux`). Regardless of which machine is running the test (e.g., an Apple Silicon Mac or a standard Linux server), Nix ensures the correct QEMU binaries and the correct x86_64 Linux kernel are fetched.
+
+#### B. The "Initrd" Construction (Step 1 in the script)
+Before launching QEMU, the script builds a tiny filesystem from scratch:
+1.  **Create Folders:** It creates a temporary directory structure (`/bin`, `/proc`, `/sys`, etc.).
+2.  **Inject BusyBox:** It places a static `busybox` binary (a Swiss-army knife of Unix utilities) into the folder.
+3.  **Configure `inittab`:** It creates an `inittab` file that tells the kernel: *"Once you boot, mount these three filesystems and then print the kernel version, CPU model, and Memory total."*
+4.  **Package:** It uses `cpio` to compress this folder into a `.cpio` file, which is the standard format for a Linux Initrd.
+
+#### C. The QEMU Execution (Step 2)
+It launches `qemu-system-x86_64` with specific flags:
+*   **`-kernel`**: Points to the actual Linux kernel (`bzImage`).
+*   **`-initrd`**: Points to the `.cpio` file created in the previous step.
+*   **`-serial file:"$LOG_PATH"`**: This is crucial. It redirects everything the guest kernel prints to a text file on the host machine.
+*   **`-nographic -display none`**: Ensures the test runs in a "headless" mode (no window pops up), which is required for CI servers.
+
+#### D. Verification (Step 3)
+The script doesn't just run QEMU and assume it worked. It parses the resulting `test.log` file. 
+*   If the log contains "Linux version", "model name", and "MemTotal", it means the kernel successfully booted and ran the commands.
+*   If these strings are missing, the script exits with an error code (`1`), failing the CI build.
+
+---
+
+### 3. Why is it built this way?
+
+**1. Speed (The "Smoke Test" Philosophy)**
+Booting a full Linux distribution in CI takes minutes. Booting a kernel with an Initrd takes **seconds**. This allows developers to get instant feedback on whether a kernel change broke the basic ability to boot.
+
+**2. Determinism (The "Nix" Philosophy)**
+By using Nix, the script ensures that the **exact same** kernel binary and `busybox` version are used every single time. This eliminates "it works on my machine" bugs where a different version of QEMU or a different kernel header might be installed on the host.
+
+**3. Portability**
+The script handles the complexity of running an x86_64 guest on an ARM64 host (like an M1/M2/M3 Mac). It automatically selects the correct emulation path based on the machine's architecture.
+
+**4. Automated Diagnostics**
+By capturing the output to `test.log` and `qemu_error.log`, if the test fails, the CI system can print the exact error message from the kernel's "panic" screen, making it much easier for developers to debug.
+
+
+GHA CI: <https://github.com/BaseLayer-AI/baselayer-ai-qemu/actions?query=branch%3Amain>
+
+Full llama.cpp script: <https://nix-ontouchstart.github.io/nix-ontouchstart-llama_cpp-sessions/2026-11-03_02-29-51_conv_19f3d331_what_how_and_why_>
