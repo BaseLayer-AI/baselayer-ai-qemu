@@ -1,5 +1,7 @@
 # baselayer-ai-qemu
 
+https://github.com/BaseLayer-AI/baselayer-ai-qemu/actions/workflows/ci.yml
+
 ```
 nix run "https://flakehub.com/f/BaseLayer-AI/baselayer-ai-qemu/*"
 ```
